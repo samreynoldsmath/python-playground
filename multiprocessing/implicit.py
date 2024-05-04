@@ -65,7 +65,7 @@ def good_parallel_execution(instance_list: list[ExampleClass]) -> None:
         print(example)
 
 
-def parallel_helper(example: ExampleClass) -> None:
+def parallel_helper(example: ExampleClass) -> ExampleClass:
     """
     Helper function for parallel_execution. Executes the method of the
     ExampleClass instance and returns the instance.

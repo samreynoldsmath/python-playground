@@ -5,8 +5,9 @@ import numpy as np
 
 
 def main():
-    num_edge_nodes = 128
-    int_mesh_size = (64, 64)
+    num_edge_nodes = 32
+    int_mesh_size = (16, 16)
+    radius = 0.1
 
     # make some example coordinates
     boundary_x, boundary_y = boundary_nodes(num_edge_nodes)
@@ -22,19 +23,22 @@ def main():
     hole2_y = boundary_y[2 * num_edge_nodes :]
 
     # find the interior nodes
-    interior_x, interior_y = interior_nodes(
+    interior_x_raw, interior_y_raw, is_inside = interior_nodes_raw(
         outer_x,
         outer_y,
         [hole1_x, hole2_x],
         [hole1_y, hole2_y],
         int_mesh_size,
-        radius=-1e-1,
+        radius,
+    )
+
+    # remove points too close to the boundary
+    interior_x, interior_y = interior_nodes_clean(
+        interior_x_raw, interior_y_raw, is_inside
     )
 
     # combine the boundary and interior nodes
-    nodes_x, nodes_y = node_coordinates(
-        boundary_x, boundary_y, interior_x, interior_y
-    )
+    nodes_x, nodes_y = node_coordinates(boundary_x, boundary_y, interior_x, interior_y)
 
     # create a triangulation
     triangulation = tri.Triangulation(nodes_x, nodes_y)
@@ -44,19 +48,47 @@ def main():
 
     # define a function to interpolate
     vals = function_to_interpolate(nodes_x, nodes_y)
+    interior_vals_raw = function_to_interpolate(interior_x_raw, interior_y_raw)
+    interior_vals_raw[np.logical_not(is_inside)] = np.nan
 
     # plot the nodes by type
-    plot_nodes(nodes_x, nodes_y, interior_x, interior_y, num_edge_nodes)
+    plt.figure()
+    plot_nodes(
+        interior_x, interior_y, outer_x, outer_y, [hole1_x, hole2_x], [hole1_y, hole2_y]
+    )
 
-    # plot the triangulation
-    plot_triangulation(
-        triangulation,
-        vals,
+    # plot the function only on the interior nodes
+    plt.figure()
+    plot_classic(
+        interior_vals_raw,
+        interior_x_raw,
+        interior_y_raw,
         outer_x,
         outer_y,
         [hole1_x, hole2_x],
         [hole1_y, hole2_y],
     )
+
+    # plot the triangulation
+    plt.figure()
+    plot_triangulation(
+        triangulation,
+        outer_x,
+        outer_y,
+        [hole1_x, hole2_x],
+        [hole1_y, hole2_y],
+        interior_x,
+        interior_y,
+    )
+
+    # plot the interpolated function
+    plt.figure()
+    plot_interpolated(
+        triangulation, vals, outer_x, outer_y, [hole1_x, hole2_x], [hole1_y, hole2_y]
+    )
+
+    # show the plots
+    plt.show()
 
 
 def remove_holes(triangulation, outer_x, outer_y, holes_x, holes_y):
@@ -80,23 +112,13 @@ def remove_holes(triangulation, outer_x, outer_y, holes_x, holes_y):
     return triangulation
 
 
-def remove_holes_bad(triangulation, hole_indices):
-    num_triangles = triangulation.triangles.shape[0]
-    mask = np.zeros(num_triangles, dtype=bool)
-    for t in range(num_triangles):
-        if np.all(np.in1d(triangulation.triangles[t], hole_indices)):
-            mask[t] = True
-    triangulation.set_mask(mask)
-    return triangulation
-
-
 def boundary_nodes(num_edge_nodes):
     t = np.linspace(0, 2 * np.pi, num_edge_nodes)
     # exterior boundary
     nodes_x = list(np.cos(t))
     nodes_y = list(np.sin(t))
     # hole boundary
-    nodes_x.extend(list(0.3 * np.cos(-t) + 0.5))
+    nodes_x.extend(list(0.3 * np.cos(1 - t) + 0.5))
     nodes_y.extend(list(0.3 * np.sin(-t) + 0.2))
     # hole boundary
     r = 0.3 + 0.25 * np.sin(2 * t)
@@ -113,9 +135,7 @@ def node_coordinates(boundary_x, boundary_y, interior_x, interior_y):
     return np.array(nodes_x), np.array(nodes_y)
 
 
-def interior_nodes(
-    outer_x, outer_y, holes_x, holes_y, int_mesh_size=(10, 10), radius=1e-1
-):
+def interior_nodes_raw(outer_x, outer_y, holes_x, holes_y, int_mesh_size, radius):
     # set up a grid of points in the bounding box
     x_min, x_max, y_min, y_max = bounding_box(outer_x, outer_y)
     interior_x = np.linspace(x_min, x_max, int_mesh_size[0])
@@ -136,8 +156,27 @@ def interior_nodes(
                 radius,
             )
 
+    # eliminate points too close to the boundary
+    boundary_x = np.concatenate((outer_x, *holes_x))
+    boundary_y = np.concatenate((outer_y, *holes_y))
+    for i in range(int_mesh_size[0]):
+        for j in range(int_mesh_size[1]):
+            if not is_inside[i, j]:
+                continue
+            for x, y in zip(boundary_x, boundary_y):
+                dist = np.sqrt(
+                    (interior_x[i, j] - x) ** 2 + (interior_y[i, j] - y) ** 2
+                )
+                if dist < np.abs(radius):
+                    is_inside[i, j] = False
+                    break
+
     # return the interior points
     is_inside = is_inside.reshape(interior_x.shape)
+    return interior_x, interior_y, is_inside
+
+
+def interior_nodes_clean(interior_x, interior_y, is_inside):
     return interior_x[is_inside], interior_y[is_inside]
 
 
@@ -148,9 +187,7 @@ def point_is_inside_simple(point_x, point_y, path_x, path_y, radius):
     return Path(polygon).contains_point((point_x, point_y), radius=radius)
 
 
-def point_is_inside(
-    point_x, point_y, outer_x, outer_y, holes_x, holes_y, radius
-):
+def point_is_inside(point_x, point_y, outer_x, outer_y, holes_x, holes_y, radius):
     if not point_is_inside_simple(point_x, point_y, outer_x, outer_y, radius):
         return False
     for hole_x, hole_y in zip(holes_x, holes_y):
@@ -167,31 +204,45 @@ def function_to_interpolate(x, y):
     return (x**2 + y**2) * np.sin(x * y * np.pi)
 
 
-def plot_triangulation(
-    triangulation, scalars, outer_x, outer_y, holes_x=None, holes_y=None
-):
+def plot_interpolated(triangulation, scalars, outer_x, outer_y, holes_x, holes_y):
     plt.tricontourf(triangulation, scalars)
+    plt.plot(outer_x, outer_y, "k-")
+    for hole_x, hole_y in zip(holes_x, holes_y):
+        plt.plot(hole_x, hole_y, "k-")
+    plt.axis("equal")
+
+
+def plot_triangulation(
+    triangulation, outer_x, outer_y, holes_x, holes_y, interior_x, interior_y
+):
     plt.triplot(triangulation, "-k")
-    plt.plot(outer_x, outer_y, "b--")
-    if holes_x is not None:
-        for hole_x, hole_y in zip(holes_x, holes_y):
-            plt.plot(hole_x, hole_y, "b--")
-    plt.colorbar()
+    plot_nodes(
+        interior_x,
+        interior_y,
+        outer_x,
+        outer_y,
+        holes_x,
+        holes_y,
+    )
     plt.axis("equal")
-    plt.show()
 
 
-def plot_nodes(nodes_x, nodes_y, interior_x, interior_y, num_edge_nodes):
-    plt.figure()
-    for k in range(3):
-        plt.plot(
-            nodes_x[k * num_edge_nodes : (k + 1) * num_edge_nodes],
-            nodes_y[k * num_edge_nodes : (k + 1) * num_edge_nodes],
-            "b-",
-        )
+def plot_nodes(interior_x, interior_y, outer_x, outer_y, holes_x, holes_y):
     plt.scatter(interior_x, interior_y, c="r")
+    plt.plot(outer_x, outer_y, "bo")
+    for hole_x, hole_y in zip(holes_x, holes_y):
+        plt.plot(hole_x, hole_y, "bo")
     plt.axis("equal")
-    plt.show()
+
+
+def plot_classic(
+    interior_vals, interior_x, interior_y, outer_x, outer_y, holes_x, holes_y
+):
+    plt.contourf(interior_x, interior_y, interior_vals)
+    plt.plot(outer_x, outer_y, "k-")
+    for hole_x, hole_y in zip(holes_x, holes_y):
+        plt.plot(hole_x, hole_y, "k-")
+    plt.axis("equal")
 
 
 if __name__ == "__main__":

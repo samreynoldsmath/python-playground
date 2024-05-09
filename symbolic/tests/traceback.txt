@@ -1,0 +1,33 @@
+===================================================================================== FAILURES ======================================================================================
+________________________________________________________________________________ test_bad_str_sim_t _________________________________________________________________________________
+
+    def test_bad_str_sim_t() -> None:
+        edge = Edge(x="sim(t)", y=GOOD_STR)
+>       edge.sample(num_pts=8)
+
+symbolic/tests/test_string_parser.py:48:
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+symbolic/edge.py:48: in sample
+    self.x = self.evaluate_expression(self.x_expr, t_vals)
+symbolic/edge.py:54: in evaluate_expression
+    vals[idx] = float(expr.subs(self.t, t_val))
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = sim(0.0)
+
+    def __float__(self):
+        # Don't bother testing if it's a number; if it's not this is going
+        # to fail, and if it is we still need to check that it evalf'ed to
+        # a number.
+        result = self.evalf()
+        if result.is_Number:
+            return float(result)
+        if result.is_number and result.as_real_imag()[1]:
+            raise TypeError("Cannot convert complex to float")
+>       raise TypeError("Cannot convert expression to float")
+E       TypeError: Cannot convert expression to float
+
+lib/python3.11/site-packages/sympy/core/expr.py:351: TypeError
+============================================================================== short test summary info ==============================================================================
+FAILED symbolic/tests/test_string_parser.py::test_bad_str_sim_t - TypeError: Cannot convert expression to float
+============================================================================ 1 failed, 6 passed in 0.82s ============================================================================

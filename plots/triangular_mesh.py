@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
-import matplotlib.tri as tri
-from matplotlib.path import Path
 import numpy as np
+from matplotlib import tri
+from matplotlib.path import Path
 
 
 def main():
@@ -38,7 +38,9 @@ def main():
     )
 
     # combine the boundary and interior nodes
-    nodes_x, nodes_y = node_coordinates(boundary_x, boundary_y, interior_x, interior_y)
+    nodes_x, nodes_y = node_coordinates(
+        boundary_x, boundary_y, interior_x, interior_y
+    )
 
     # create a triangulation
     triangulation = tri.Triangulation(nodes_x, nodes_y)
@@ -54,7 +56,12 @@ def main():
     # plot the nodes by type
     plt.figure()
     plot_nodes(
-        interior_x, interior_y, outer_x, outer_y, [hole1_x, hole2_x], [hole1_y, hole2_y]
+        interior_x,
+        interior_y,
+        outer_x,
+        outer_y,
+        [hole1_x, hole2_x],
+        [hole1_y, hole2_y],
     )
 
     # plot the function only on the interior nodes
@@ -84,7 +91,12 @@ def main():
     # plot the interpolated function
     plt.figure()
     plot_interpolated(
-        triangulation, vals, outer_x, outer_y, [hole1_x, hole2_x], [hole1_y, hole2_y]
+        triangulation,
+        vals,
+        outer_x,
+        outer_y,
+        [hole1_x, hole2_x],
+        [hole1_y, hole2_y],
     )
 
     # show the plots
@@ -135,7 +147,9 @@ def node_coordinates(boundary_x, boundary_y, interior_x, interior_y):
     return np.array(nodes_x), np.array(nodes_y)
 
 
-def interior_nodes_raw(outer_x, outer_y, holes_x, holes_y, int_mesh_size, radius):
+def interior_nodes_raw(
+    outer_x, outer_y, holes_x, holes_y, int_mesh_size, radius
+):
     # set up a grid of points in the bounding box
     x_min, x_max, y_min, y_max = bounding_box(outer_x, outer_y)
     interior_x = np.linspace(x_min, x_max, int_mesh_size[0])
@@ -187,7 +201,9 @@ def point_is_inside_simple(point_x, point_y, path_x, path_y, radius):
     return Path(polygon).contains_point((point_x, point_y), radius=radius)
 
 
-def point_is_inside(point_x, point_y, outer_x, outer_y, holes_x, holes_y, radius):
+def point_is_inside(
+    point_x, point_y, outer_x, outer_y, holes_x, holes_y, radius
+):
     if not point_is_inside_simple(point_x, point_y, outer_x, outer_y, radius):
         return False
     for hole_x, hole_y in zip(holes_x, holes_y):
@@ -204,7 +220,9 @@ def function_to_interpolate(x, y):
     return (x**2 + y**2) * np.sin(x * y * np.pi)
 
 
-def plot_interpolated(triangulation, scalars, outer_x, outer_y, holes_x, holes_y):
+def plot_interpolated(
+    triangulation, scalars, outer_x, outer_y, holes_x, holes_y
+):
     plt.tricontourf(triangulation, scalars)
     plt.plot(outer_x, outer_y, "k-")
     for hole_x, hole_y in zip(holes_x, holes_y):

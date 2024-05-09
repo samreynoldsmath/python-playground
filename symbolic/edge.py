@@ -48,18 +48,22 @@ class Edge:
         self.x = self.evaluate_expression(self.x_expr, t_vals)
         self.y = self.evaluate_expression(self.y_expr, t_vals)
 
-    def evaluate_expression(self, expr: sp.Expr, t_vals: np.ndarray) -> np.ndarray:
+    def evaluate_expression(
+        self, expr: sp.Expr, t_vals: np.ndarray
+    ) -> np.ndarray:
         vals = np.zeros(t_vals.shape)
         for idx, t_val in enumerate(t_vals):
             vals[idx] = float(expr.subs(self.t, t_val))
         return vals
 
-def example(make_plot: bool=True):
+
+def example(make_plot: bool = True):
     edge = Edge("t*cos(t)", "t*sin(t)")
     edge.sample(32)
     if make_plot:
         plt.plot(edge.x, edge.y, "k.-")
         plt.show()
+
 
 if __name__ == "__main__":
     example(make_plot=True)

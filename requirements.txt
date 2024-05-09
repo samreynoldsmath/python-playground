@@ -1,2 +1,9 @@
+# dependencies
 matplotlib
 numpy
+sympy
+
+# dev tools
+black
+mypy
+pylint

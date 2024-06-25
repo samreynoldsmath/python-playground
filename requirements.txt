@@ -1,4 +1,5 @@
 # dependencies
+PyQt5
 matplotlib
 numpy
 sympy

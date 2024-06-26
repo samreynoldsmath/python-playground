@@ -2,6 +2,7 @@
 PyQt5
 matplotlib
 numpy
+scipy
 sympy
 
 # dev tools
